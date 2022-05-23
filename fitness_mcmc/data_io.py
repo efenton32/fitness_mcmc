@@ -14,7 +14,7 @@ def _get_file_path(filename, data_dir):
         file_name[str]: file name of data file
         data_dir[str]: the directory where the file is located
 
-        Returns:
+    Returns:
         data_path[str]: the absolute path to file_name
     """
     start = os.path.abspath(__file__)
@@ -24,26 +24,28 @@ def _get_file_path(filename, data_dir):
 
     return data_path
 
-def load_data(filename, data_dir = "experimental_data", load_metadata = False):
-    #the default is data_directory is experimental_data
+def load_data(filename, data_dir = "experimental_data", load_metadata = False,
+    return_ordered = False):
     """
     Takes data file path and outputs time generations and counts as numpy arrays
 
     Params:
-        data_file[str]: path to data_file
+        data_file[str]: Path to data_file
+        load_metada [bool]: Load true s and f0 values from simulated data
+        return_ordered [bool]: Automatically reorder lineages from most to least
+            total counts
 
     Returns:
-        data [pandas_dataframe]: actual data where time and counts is stored
-        time [array_like]: time generations when sampling would occur
-        counts [array_like]: counts of genotypes
-        frequencies [array_like]: normalized counts of genotypes
-        load_metada [bool]: load true s and f0 values from simulated data
+        data [pandas_dataframe]: Actual data where time and counts is stored
+        time [array_like]: Time generations when sampling would occur
+        counts [array_like]: Counts of genotypes
+        frequencies [array_like]: Normalized counts of genotypes
     """
     data_file = _get_file_path(filename, data_dir)
     data = pd.read_csv(data_file, delimiter = "\t")
     time = [float(i) for i in data.columns[1:]]
     counts = data.loc[:,data.columns[1:]].to_numpy()
-    frequencies = np.zeros(np.shape(counts.T))
+
     if load_metadata:
         metadata_file = _get_file_path(
             filename.split(".txt")[0] + "_metadata.txt", data_dir
@@ -51,15 +53,19 @@ def load_data(filename, data_dir = "experimental_data", load_metadata = False):
         metadata = pd.read_csv(metadata_file, delimiter = "\t").to_numpy()[:,1:]
         s_vals = metadata[:, 0]
         f0_vals = metadata[:, 1]
-    idx = np.flipud(np.argsort(np.sum(counts, axis = 1)))
-    ordered_counts = counts[idx, :].astype("float")
+
+    if return_ordered:
+        idx = np.flipud(np.argsort(np.sum(counts, axis = 1)))
+        counts = counts[idx, :].astype("float")
+        data = data.reindex(idx)
 
     if load_metadata:
-        s_vals = s_vals[idx]
-        f0_vals = f0_vals[idx]
-        return data, time, ordered_counts, s_vals, f0_vals
+        if return_ordered:
+            s_vals = s_vals[idx]
+            f0_vals = f0_vals[idx]
+        return data, time, counts, s_vals, f0_vals
     else:
-        return data, time, ordered_counts
+        return data, time, counts
 
 def write_simulated_datafile(filename, N = 40, times = [5, 10, 25, 40, 45],
         s_range = 0.1, depth = 1000, s_vals = [], f0_vals = []):
@@ -68,8 +74,8 @@ def write_simulated_datafile(filename, N = 40, times = [5, 10, 25, 40, 45],
 
     Params:
         filename [str]: Name of the output file.
-        N [int]: Population size, i.e. number of genotypes. Automatically assumed if f0_vals or s_vals
-            are included.
+        N [int]: Population size, i.e. number of genotypes. Automatically
+            assumed if f0_vals or s_vals are included.
         times [array_like]: Times, in generations, to sample lineages.
         s_range [float]: Range of fitness values. Ignored if s_vals is included.
         depth [int_or_float]: Simulated read depth, affects noise.

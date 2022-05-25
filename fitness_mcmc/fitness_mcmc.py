@@ -26,7 +26,7 @@ class Fitness_Model:
             self.times = np.array([7, 14, 28, 42, 49]).reshape([1, -1])
         else:
             self.times = np.array(times).reshape([1, -1, 1])
-        self.num_times = len(self.times[0,:])
+        self.num_times = len(self.times[0,:,0])
         self.data = np.array(data)
         self.num_reps = data.shape[-1]
         self.N = len(data[:, 0])
@@ -54,18 +54,15 @@ class Fitness_Model:
             self.s_tot = pm.math.concatenate((self.s_ref, self.s))
             self.f0 = pm.Dirichlet("f0", a = np.ones((self.num_reps, self.N))).reshape((self.N, 1, self.num_reps))
 
-            x = self.s_tot * self.times
             self.f_tot = (self.f0 * pm.math.exp(self.s_tot * self.times)
                 / pm.math.sum(self.f0 * pm.math.exp(self.s_tot * self.times),
-                axis = 0)
+                axis = 0, keepdims = True)
             )
 
-            print(np.sum(self.data, axis = 0))
-
             self.n_obs = pm.Multinomial("n_obs",
-                np.sum(self.data, axis = 0).reshape((-1, 1, self.num_reps)),
-                p = self.f_tot.transpose([1,0,2]),
-                observed = self.data.transpose([1,0,2])
+                np.sum(self.data, axis = 0, keepdims = True).transpose([2,1,0]),
+                p = self.f_tot.transpose([2,1,0]),
+                observed = self.data.transpose([2,1,0])
             )
 
     def mcmc_sample(self, draws, tune = 4000, **kwargs):
@@ -118,6 +115,7 @@ class Fitness_Model:
             type [str]: either "log_y" or "lin", sets the y axis scale
         """
         self.f_pred = np.zeros_like(self.data)
+        print(self.f_pred.shape)
         self.f_pred[1:, :] = (self.map_estimate["f0"][1:, None]
             * np.exp(self.map_estimate["s"] * self.times)
         )

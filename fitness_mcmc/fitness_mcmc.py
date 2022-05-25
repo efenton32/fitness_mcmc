@@ -25,9 +25,10 @@ class Fitness_Model:
         if not times:
             self.times = np.array([7, 14, 28, 42, 49]).reshape([1, -1])
         else:
-            self.times = np.array(times).reshape([1, -1])
+            self.times = np.array(times).reshape([1, -1, 1])
         self.num_times = len(self.times[0,:])
-        self.data = np.array(data).reshape([-1, self.num_times])
+        self.data = np.array(data)
+        self.num_reps = data.shape[-1]
         self.N = len(data[:, 0])
         self.model = pm.Model()
         self.s_ref_val = s_ref
@@ -36,32 +37,35 @@ class Fitness_Model:
             self.s_prior = s_prior
 
         with self.model:
-            self.s_ref = pm.math.constant(s_ref, ndim = 2)
-
+            self.s_ref = pm.math.constant(s_ref, ndim = 3)
             if self.prior == "gauss":
                 self.mu = pm.Uniform("mu", -0.5, 0.2)
                 self.sigma = pm.Uniform("sigma", 0.01, 0.3)
                 self.s = pm.Normal("s", self.mu, self.sigma,
-                    shape = (self.N - 1, 1)
+                    shape = (self.N - 1, 1, 1)
                 )
             elif self.priors == "flat":
-                self.s = pm.Flat("s", shape = (self.N - 1, 1))
+                self.s = pm.Flat("s", shape = (self.N - 1, 1, 1))
             elif self.priors == "values":
                 self.s = pm.Normal("s", self.s_prior[:,0], self.s_prior[:,1],
-                    shape = (self.N - 1, 1)
+                    shape = (self.N - 1, 1, 1)
                 )
 
             self.s_tot = pm.math.concatenate((self.s_ref, self.s))
-            self.f0 = pm.Dirichlet("f0", a = np.ones(self.N)).reshape((self.N, 1))
+            self.f0 = pm.Dirichlet("f0", a = np.ones((self.num_reps, self.N))).reshape((self.N, 1, self.num_reps))
 
+            x = self.s_tot * self.times
             self.f_tot = (self.f0 * pm.math.exp(self.s_tot * self.times)
                 / pm.math.sum(self.f0 * pm.math.exp(self.s_tot * self.times),
                 axis = 0)
             )
 
+            print(np.sum(self.data, axis = 0))
+
             self.n_obs = pm.Multinomial("n_obs",
-                np.sum(self.data, axis = 0).reshape((-1, 1)),
-                p =self.f_tot.T, observed = self.data.T
+                np.sum(self.data, axis = 0).reshape((-1, 1, self.num_reps)),
+                p = self.f_tot.transpose([1,0,2]),
+                observed = self.data.transpose([1,0,2])
             )
 
     def mcmc_sample(self, draws, tune = 4000, **kwargs):

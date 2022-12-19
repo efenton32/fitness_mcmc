@@ -61,7 +61,7 @@ class Fitness_Model:
 
             self.n_obs = pm.Multinomial("n_obs",
                 np.sum(self.data, axis = 0).reshape((-1, 1)),
-                p =self.f_tot.T, observed = self.data.T
+                p = self.f_tot.T, observed = self.data.T
             )
 
     def mcmc_sample(self, draws, tune = 4000, **kwargs):

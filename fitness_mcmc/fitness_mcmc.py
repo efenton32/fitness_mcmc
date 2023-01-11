@@ -44,9 +44,9 @@ class Fitness_Model:
                 self.s = pm.Normal("s", self.mu, self.sigma,
                     shape = (self.N - 1, 1)
                 )
-            elif self.priors == "flat":
+            elif self.prior == "flat":
                 self.s = pm.Flat("s", shape = (self.N - 1, 1))
-            elif self.priors == "values":
+            elif self.prior == "values":
                 self.s = pm.Normal("s", self.s_prior[:,0], self.s_prior[:,1],
                     shape = (self.N - 1, 1)
                 )

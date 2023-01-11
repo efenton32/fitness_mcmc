@@ -137,9 +137,9 @@ class Fitness_Model:
         axs[0].set_ylabel("Lineage frequency")
         axs[0].set_title("Data")
         axs[1].set_title("Reconstructed")
-        plt.show()
         if filename is not None:
             plt.savefig(filename)
+        plt.show()
 
 def normalize_func(x):
     """

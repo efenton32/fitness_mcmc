@@ -159,6 +159,8 @@ class Fitness_Model:
         axs[0].set_title("Data")
         axs[1].set_title("Reconstructed")
         plt.show()
+        if filename is not None:
+            plt.savefig(filename)
 
 def normalize_func(x):
     """

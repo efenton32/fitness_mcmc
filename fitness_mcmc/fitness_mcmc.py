@@ -106,7 +106,7 @@ class Fitness_Model:
         """
         self.map_estimate = pm.find_MAP(model = self.model, **kwargs)
 
-    def plot_MAP_estimate(self, type="log_y"):
+    def plot_MAP_estimate(self, type="log_y", filename=None):
         """
         Plots lineage trajectories from the MAP estimate
 
@@ -138,6 +138,8 @@ class Fitness_Model:
         axs[0].set_title("Data")
         axs[1].set_title("Reconstructed")
         plt.show()
+        if filename is not None:
+            plt.savefig(filename)
 
 def normalize_func(x):
     """

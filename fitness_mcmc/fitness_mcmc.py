@@ -2,6 +2,7 @@ import numpy as np
 import pymc3 as pm
 import matplotlib.pyplot as plt
 import arviz as az
+import csv
 
 class Fitness_Model:
     def __init__(self, data, times = None, s_ref = 0, prior = "gauss",
@@ -22,7 +23,7 @@ class Fitness_Model:
                 fitness, eg. from another experiment. Should have shape
                 (# lineages - 1, 2)
         """
-        if not times:
+        if times is None:
             self.times = np.array([7, 14, 28, 42, 49]).reshape([1, -1])
         else:
             self.times = np.array(times).reshape([1, -1])
@@ -105,6 +106,20 @@ class Fitness_Model:
         Finds the MAP estimate for lineage fitnesses and starting frequencies
         """
         self.map_estimate = pm.find_MAP(model = self.model, **kwargs)
+
+    def save_MAP(self, save_file, barcodes, **kwargs):
+        """
+        Saves the MAP estimate to a csv file
+
+        Parameters:
+            save_file [str]: output file to save to
+            barcodes [list]: barcodes or other unique identifier for lineages
+        """
+        with open(save_file, "w") as sf:
+            writer = csv.writer(sf, delimiter="\t")
+            writer.writerow([barcodes[0], self.s_ref_val])
+            for bc, s_val in zip(barcodes[1:], self.map_estimate["s"]):
+                writer.writerow([bc, s_val[0]])
 
     def plot_MAP_estimate(self, type="log_y"):
         """

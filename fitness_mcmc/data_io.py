@@ -25,7 +25,7 @@ def _get_file_path(filename, data_dir):
     return data_path
 
 def load_data(filename, data_dir = "experimental_data", load_metadata = False,
-    return_ordered = False, delimiter = "\t"):
+    return_ordered = False, return_times = True, delimiter = "\t"):
     """
     Takes data file path and outputs time generations and counts as numpy arrays
 
@@ -34,6 +34,8 @@ def load_data(filename, data_dir = "experimental_data", load_metadata = False,
         load_metada [bool]: Load true s and f0 values from simulated data
         return_ordered [bool]: Automatically reorder lineages from most to least
             total counts
+        return_times [bool]: Read and return times, measured in generations, from
+            the first line of the datafile
 
     Returns:
         data [pandas_dataframe]: Actual data where time and counts is stored
@@ -42,9 +44,13 @@ def load_data(filename, data_dir = "experimental_data", load_metadata = False,
         frequencies [array_like]: Normalized counts of genotypes
     """
     data_file = _get_file_path(filename, data_dir)
-    data = pd.read_csv(data_file, delimiter = delimiter)
-    time = [float(i) for i in data.columns[1:]]
-    counts = data.loc[:,data.columns[1:]].to_numpy()
+    if return_times:
+        data = pd.read_csv(data_file, delimiter = delimiter)
+        time = [float(i) for i in data.columns[1:]]
+        counts = data.loc[:,data.columns[1:]].to_numpy()
+    else:
+        data = pd.read_csv(data_file, delimiter = delimiter, header = None)
+        counts = data.loc[:,data.columns[1:]].to_numpy()
 
     if load_metadata:
         metadata_file = _get_file_path(
@@ -63,9 +69,15 @@ def load_data(filename, data_dir = "experimental_data", load_metadata = False,
         if return_ordered:
             s_vals = s_vals[idx]
             f0_vals = f0_vals[idx]
-        return data, time, counts, s_vals, f0_vals
+        if return_times:
+            return data, time, counts, s_vals, f0_vals
+        else:
+            return data, counts, s_vals, f0_vals
     else:
-        return data, time, counts
+        if return_times:
+            return data, time, counts
+        else:
+            return data, counts
 
 def write_simulated_datafile(filename, N = 40, times = [5, 10, 25, 40, 45],
         s_range = 0.1, depth = 1000, s_vals = [], f0_vals = []):

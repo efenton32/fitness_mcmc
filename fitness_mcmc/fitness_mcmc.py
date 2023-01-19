@@ -5,8 +5,8 @@ import arviz as az
 import csv
 
 class Fitness_Model:
-    def __init__(self, data, times=None, reps=1 s_ref=0, prior="gauss",
-                 s_prior=None):
+    def __init__(self, data, times=None,
+                 reps=1, s_ref=0, prior="gauss", s_prior=None):
         """
         Initializes the Fitness_Model class
 
@@ -27,7 +27,7 @@ class Fitness_Model:
         if times is None:
             self.times = np.array([7, 14, 28, 42, 49]).reshape([1, -1])
         else:
-            self.times = np.array(times).reshape([1, -1])
+            self.times = np.array(times).reshape([1, -1, 1])
         self.num_times = len(self.times[0,:])
         self.reps = reps
         self.data = np.array(data).reshape([-1, self.num_times, reps])
@@ -39,23 +39,26 @@ class Fitness_Model:
             self.s_prior = s_prior
 
         with self.model:
-            self.s_ref = pm.math.constant(s_ref, ndim = 2)
+            self.s_ref = pm.math.constant(s_ref, ndim = 3)
 
             if self.prior == "gauss":
                 self.mu = pm.Uniform("mu", -0.5, 0.2)
-                self.sigma = pm.Uniform("sigma", 0.01, 0.3)
+                self.sigma = pm.Uniform("sigma", 0.01, 1.0)
                 self.s = pm.Normal("s", self.mu, self.sigma,
-                    shape = (self.N - 1, 1)
+                    shape = (self.N - 1, 1, 1)
                 )
             elif self.priors == "flat":
-                self.s = pm.Flat("s", shape = (self.N - 1, 1))
+                self.s = pm.Flat("s", shape = (self.N - 1, 1, 1))
             elif self.priors == "values":
                 self.s = pm.Normal("s", self.s_prior[:,0], self.s_prior[:,1],
-                    shape = (self.N - 1, 1)
+                    shape = (self.N - 1, 1, 1)
                 )
 
             self.s_tot = pm.math.concatenate((self.s_ref, self.s))
-            self.f0 = pm.Dirichlet("f0", a = np.ones(self.N * self.reps)).reshape((self.N, self.reps))
+            self.f0_list = [pm.Dirichlet(f"f0_{rep}", a = np.ones(self.N)).reshape((-1, 1, 1))
+                            for rep in range(self.reps)]
+
+            self.f0 = pm.math.concatenate(self.f0_list, axis = 2)
 
             self.f_tot = (self.f0 * pm.math.exp(self.s_tot * self.times)
                 / pm.math.sum(self.f0 * pm.math.exp(self.s_tot * self.times),
@@ -63,8 +66,8 @@ class Fitness_Model:
             )
 
             self.n_obs = pm.Multinomial("n_obs",
-                np.sum(self.data, axis = 0).reshape((-1, self.reps)),
-                p = self.f_tot.transpose((1,0,2), observed = self.data.transpose((1,0,2))
+                np.sum(self.data, axis = 0).reshape((1, self.num_times, self.reps)).transpose((1,2,0)),
+                p = self.f_tot.transpose((1,2,0)), observed = self.data.transpose((1,2,0))
             )
 
     def mcmc_sample(self, draws, tune = 4000, **kwargs):
@@ -109,7 +112,7 @@ class Fitness_Model:
         """
         self.map_estimate = pm.find_MAP(model = self.model, **kwargs)
 
-    def save_MAP(self, save_file, barcodes, **kwargs):
+    def save_MAP(self, save_file, barcodes=None, **kwargs):
         """
         Saves the MAP estimate to a csv file
 
@@ -117,11 +120,13 @@ class Fitness_Model:
             save_file [str]: output file to save to
             barcodes [list]: barcodes or other unique identifier for lineages
         """
+        if barcodes is None:
+            barcodes = np.arange(len(self.map_estimate["s"])+1)
         with open(save_file, "w") as sf:
             writer = csv.writer(sf, delimiter="\t")
             writer.writerow([barcodes[0], self.s_ref_val])
             for bc, s_val in zip(barcodes[1:], self.map_estimate["s"]):
-                writer.writerow([bc, s_val[0]])
+                writer.writerow([bc, s_val[0][0]])
 
     def plot_MAP_estimate(self, type="log_y"):
         """

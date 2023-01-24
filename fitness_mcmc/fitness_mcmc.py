@@ -134,7 +134,7 @@ class Fitness_Model:
         Parameters:
             type [str]: either "log_y" or "lin", sets the y axis scale
         """
-        self.f_pred = np.zeros_like(self.data)
+        self.f_pred = np.zeros_like(self.data).astype("float")
         self.f_pred[1:, :] = (self.map_estimate["f0"][1:, None]
             * np.exp(self.map_estimate["s"] * self.times)
         )

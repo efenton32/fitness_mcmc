@@ -45,11 +45,11 @@ def load_data(filename, data_dir = "experimental_data", load_metadata = False,
     """
     data_file = _get_file_path(filename, data_dir)
     if return_times:
-        data = pd.read_csv(data_file, delimiter = delimiter)
+        data = pd.read_csv(data_file, delimiter = delimiter, index_col = 0)
         time = [float(i) for i in data.columns[1:]]
         counts = data.loc[:,data.columns[1:]].to_numpy()
     else:
-        data = pd.read_csv(data_file, delimiter = delimiter, header = None)
+        data = pd.read_csv(data_file, delimiter = delimiter, header = None, index_col = 0)
         counts = data.loc[:,data.columns[1:]].to_numpy()
 
     if load_metadata:
@@ -62,8 +62,9 @@ def load_data(filename, data_dir = "experimental_data", load_metadata = False,
 
     if return_ordered:
         idx = np.flipud(np.argsort(np.sum(counts, axis = 1)))
+        bc_idx = data.index.to_numpy()[idx]
         counts = counts[idx, :].astype("float")
-        data = data.reindex(idx)
+        data = data.reindex(bc_idx)
 
     counts = counts.reshape([counts.shape[0], counts.shape[1], 1])
 

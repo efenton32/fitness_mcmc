@@ -57,7 +57,6 @@ class Fitness_Model:
             self.s_tot = pm.math.concatenate((self.s_ref, self.s))
             self.f0_list = [pm.Dirichlet(f"f0_{rep}", a = np.ones(self.N)).reshape((-1, 1, 1))
                             for rep in range(self.reps)]
-
             self.f0 = pm.math.concatenate(self.f0_list, axis = 2)
 
             self.f_tot = (self.f0 * pm.math.exp(self.s_tot * self.times)
@@ -66,7 +65,7 @@ class Fitness_Model:
             )
 
             self.n_obs = pm.Multinomial("n_obs",
-                np.sum(self.data, axis = 0).reshape((1, self.num_times, self.reps)).transpose((1,2,0)),
+                np.sum(self.data, axis = 0, keepdims = True).transpose((1,2,0)),
                 p = self.f_tot.transpose((1,2,0)), observed = self.data.transpose((1,2,0))
             )
 

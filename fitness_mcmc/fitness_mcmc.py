@@ -26,7 +26,7 @@ class Fitness_Model:
         if times is None:
             self.times = np.array([7, 14, 28, 42, 49]).reshape([1, -1])
         else:
-            self.times = np.array(times).reshape([1, -1, 1])
+            self.times = np.array(times).reshape([1, -1])
         self.num_times = len(self.times[0,:])
         self.data = np.array(data).reshape([-1, self.num_times])
         self.N = len(data[:, 0])
@@ -37,19 +37,19 @@ class Fitness_Model:
             self.s_prior = s_prior
 
         with self.model:
-            self.s_ref = pm.math.constant(s_ref, ndim = 3)
+            self.s_ref = pm.math.constant(s_ref, ndim = 2)
 
             if self.prior == "gauss":
                 self.mu = pm.Uniform("mu", -0.5, 0.2)
-                self.sigma = pm.Uniform("sigma", 0.01, 1.0)
+                self.sigma = pm.Uniform("sigma", 0.01, 0.3)
                 self.s = pm.Normal("s", self.mu, self.sigma,
-                    shape = (self.N - 1, 1, 1)
+                    shape = (self.N - 1, 1)
                 )
             elif self.prior == "flat":
                 self.s = pm.Flat("s", shape = (self.N - 1, 1))
             elif self.prior == "values":
                 self.s = pm.Normal("s", self.s_prior[:,0], self.s_prior[:,1],
-                    shape = (self.N - 1, 1, 1)
+                    shape = (self.N - 1, 1)
                 )
 
             self.s_tot = pm.math.concatenate((self.s_ref, self.s))
@@ -107,7 +107,7 @@ class Fitness_Model:
         """
         self.map_estimate = pm.find_MAP(model = self.model, **kwargs)
 
-    def save_MAP(self, save_file, barcodes=None, **kwargs):
+    def save_MAP(self, save_file, barcodes, **kwargs):
         """
         Saves the MAP estimate to a csv file
 
@@ -115,13 +115,11 @@ class Fitness_Model:
             save_file [str]: output file to save to
             barcodes [list]: barcodes or other unique identifier for lineages
         """
-        if barcodes is None:
-            barcodes = np.arange(len(self.map_estimate["s"])+1)
         with open(save_file, "w") as sf:
             writer = csv.writer(sf, delimiter="\t")
             writer.writerow([barcodes[0], self.s_ref_val])
             for bc, s_val in zip(barcodes[1:], self.map_estimate["s"]):
-                writer.writerow([bc, s_val[0][0]])
+                writer.writerow([bc, s_val[0]])
 
     def plot_MAP_estimate(self, type="log_y"):
         """

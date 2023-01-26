@@ -65,8 +65,6 @@ def load_data(filename, data_dir = "experimental_data", load_metadata = False,
         counts = counts[idx, :].astype("float")
         data = data.reindex(idx)
 
-    counts = counts.reshape([counts.shape[0], counts.shape[1], 1])
-
     if load_metadata:
         if return_ordered:
             s_vals = s_vals[idx]

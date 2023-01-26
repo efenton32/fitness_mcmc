@@ -28,6 +28,7 @@ def lineage_count(population):
     bc_file = get_dir(population + "d0_j.csv", "raw_data")
     bc_read = pd.read_csv(bc_file, sep=",", header=0)
     lineages = len(bc_read.index)
+
     return lineages
 
 
@@ -118,5 +119,3 @@ def format_data(population, environment, replicates, max_days=5, gens_per_day=7)
 
         out.close()
         print("formatting done")
-
-format_data("pop1", "gluL", replicates=1)

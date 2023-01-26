@@ -24,51 +24,71 @@ def get_dir(file_name, sub_dir):
     return data_path
 
 
-def format_data(population, environment, replicates):
+def lineage_count(population):
+    bc_file = get_dir(population + "d0_j.csv", "raw_data")
+    bc_read = pd.read_csv(bc_file, sep=",", header=0)
+    lineages = len(bc_read.index)
+    return lineages
+
+
+def format_data(population, environment, replicates, max_days=5, gens_per_day=7):
     """
     Pipeline for formatting daily fitness assay barcode counts into a single file. Currently only works when provided a
     master file with barcode associations and some relevant naming scheme for timepoints. This will work with the first
-    batch of fitness assays from Tanush, but will need to be updated for robustness in the future. For now, we ball.
+    batch of fitness assays from Tanush.
 
     Parameters:
         population(str) - the LTEE population, may be removed in the future
         environment(str) - growth environment of the assay
         replicates(int) - the number of total replicates to format
+        max_days(int) - number of days in the fitness assay
+        gens_per_day(int) - number of generations per daily transfer of fitness assay (float support coming soon)
     """
     pop = population
     env = environment
 
+    # Looping over replicates
     for trial in range(1, replicates + 1):
         rep = str(trial)
-        timepoints = [500, 1000, 1500, 2000, 5000, 10000, 15000, 30000, 40000, 50000]
 
         header = ["BC"]
+        for g in range(0, max_days + 1):
+            header.append(str(g * gens_per_day))
 
-        for g in range(0, 6):
-            header.append(str(g * 7))
+        lineages = lineage_count(pop)
 
-        gens = {}                       # dict of generation value:index in the frame array
-        frame = np.zeros((29, 7))       # final output file (column 0 is generation values, row 0 is bc counts for first ancestor over each timepoint)
-        for i in range(0, 19):
-            frame[i][0] = i
-            gens[i] = i
-        for i in range(0, len(timepoints)):
-            frame[i + 19][0] = timepoints[i]
-            gens[timepoints[i]] = i + 19
+        # dict of generation value : bc count at day 0
+        gens = {}
 
-        barcodes = {}                   # dict of barcode sequence: generation value
-        bc_file = get_dir("m5d0_j.csv", "raw_data")
+        # dict of barcode sequence : generation value
+        barcodes = {}
+
+        # final output file (column 0 is generation values, row 0 is bc counts for first ancestor over each timepoint)
+        frame = np.zeros((lineages, max_days + 2))
+
+        # list of generation values
+        ind = []
+
+        # Reading barcode association file and initializing frame
+        bc_file = get_dir(population + "d0_j.csv", "raw_data")
         with open(bc_file, 'rt') as f:
             reader = csv.reader(f)
             labels = next(reader)
-            for i in range(1, 30):
+            for i in range(0, lineages):
                 bc = next(reader)
                 barcodes[bc[0]] = int(bc[2])
-                index = gens[barcodes[bc[0]]]
-                frame[index][1] = int(bc[1])
+                gens[int(bc[2])] = int(bc[1])
+                ind.append(int(bc[2]))
         f.close()
+        ind.sort()
+        point = {}
+        for i in range(0, len(ind)):
+            frame[i][0] = ind[i]
+            frame[i][1] = gens[ind[i]]
+            point[ind[i]] = i
 
-        for r in range(1, 6):
+        # Reading daily data files
+        for r in range(1, max_days + 1):
             list_file = pop + "_" + env + "_" + rep + "_" + str(r) + ".csv"
             data_file = get_dir(list_file, "raw_data")
             first_read = pd.read_csv(data_file, sep=",", header=0)
@@ -78,9 +98,8 @@ def format_data(population, environment, replicates):
                 labels = next(reader)
                 for p in range(0, lim):
                     data = next(reader)
-                    point = barcodes[data[0]]
-                    index = gens[point]
-                    frame[index][r + 1] = int(data[1])
+                    index = barcodes[data[0]]
+                    frame[point[index]][r + 1] = int(data[1])
             g.close()
 
         file_out = get_dir("LTEE_" + pop + "_" + env + rep + ".csv", "experimental_data")
@@ -99,3 +118,5 @@ def format_data(population, environment, replicates):
 
         out.close()
         print("formatting done")
+
+format_data("pop1", "gluL", replicates=1)

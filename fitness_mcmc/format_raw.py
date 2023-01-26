@@ -73,7 +73,7 @@ def format_data(population, environment, replicates):
             data_file = get_dir(list_file, "raw_data")
             first_read = pd.read_csv(data_file, sep=",", header=0)
             lim = len(first_read.index)
-            with open(list_file, "rt") as g:
+            with open(data_file, "rt") as g:
                 reader = csv.reader(g)
                 labels = next(reader)
                 for p in range(0, lim):
@@ -99,6 +99,3 @@ def format_data(population, environment, replicates):
 
         out.close()
         print("formatting done")
-
-
-format_data("pop1", "gluL", 3)

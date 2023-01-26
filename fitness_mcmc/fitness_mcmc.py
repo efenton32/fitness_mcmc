@@ -116,7 +116,7 @@ class Fitness_Model:
             barcodes [list]: barcodes or other unique identifier for lineages
         """
         with open(save_file, "w") as sf:
-            writer = csv.writer(sf, delimiter="\t")
+            writer = csv.writer(sf, delimiter=",")
             writer.writerow([barcodes[0], self.s_ref_val])
             for bc, s_val in zip(barcodes[1:], self.map_estimate["s"]):
                 writer.writerow([bc, s_val[0]])

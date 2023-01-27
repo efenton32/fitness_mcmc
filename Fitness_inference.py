@@ -37,7 +37,30 @@ def save_fitness(filename, lineages, s_vals, replicates, stats):
     out.close()
 
 
-def fitness_pipeline(population, environment, reference=1, replicates=3, format=False):
+def fitness_plot(gens, s, stats, filename):
+    """
+    Plots LTEE lineage fitness per generation.
+
+    Parameters:
+        gens(list) - lineage labels, must be ints and distinguish ancestors
+        s(array) - 2D numpy fitness array
+        stats(array) - 2D numpy stats array
+        filename(str) - output file name
+    """
+    vals = stats[:, 0]
+    errs = stats[:, 1]
+    plt.errorbar(gens, vals, errs, fmt='k:', capsize=3.0)
+    for i in range(0, 3):
+        plt.scatter(gens, s[i])
+    plt.title('Home Environment Inferred Fitness')
+    plt.xlabel('Time (generations)')
+    plt.ylabel('Fitness')
+    out_file = raw.get_dir(filename, "out")
+    plt.savefig(out_file)
+
+
+def fitness_pipeline(output, population, environment, reference=1, replicates=3, bc_ass="d0_j.csv", max_days=5,
+                     gens_per_day=7, format=False, doc=False):
     """
     Serves as the master pipeline for getting a single environment's (and replicates) inferred fitness values. Will
     update these comments as I develop functionality here. Currently will:
@@ -48,17 +71,22 @@ def fitness_pipeline(population, environment, reference=1, replicates=3, format=
     -Save fitness values for all replicates into a single csv file with mean and standard deviation.
 
     Parameters:
+        output(str) - label for output files
         population(str) - LTEE population of interest
         environment(str) - environment of fitness assay
         reference(int) - reference lineage defined to have s = this value
         replicates(int) - # of replicates to be processed
+        bc_ass(str) - file_suffix with file type for the barcode association
+        max_days(int) - # of days in fitness assay
+        gens_per_day(int) - # of generations per day during assay (float support coming soon)
         format(bool) - whether or not to format from raw barcode counts
+        doc(bool) - whether or not this is being run for documentation in a jupyter notebook
     """
+    name = output + "_" + population + "_" + environment
     if format:
-        raw.format_data(population, environment, replicates)
+        raw.format_data(output, population, environment, replicates, bc_ass, max_days, gens_per_day)
 
     # Loop for all replicates
-    name = "LTEE_" + population + "_" + environment
     barcodes = []
     lin_count = raw.lineage_count("pop1")
     s = np.zeros((replicates, lin_count))
@@ -80,8 +108,11 @@ def fitness_pipeline(population, environment, reference=1, replicates=3, format=
             s[rep - 1][lin + 1] = raw_s[lin][0]
 
         # Plotting MAP
-        output = raw.get_dir(r + "_freq.png", "out")
-        fitness_model.plot_MAP_estimate(type="lin", filename=output)
+        if doc:
+            fitness_model.plot_MAP_estimate(type="lin")
+        else:
+            output = raw.get_dir(r + "_freq.png", "out")
+            fitness_model.plot_MAP_estimate(type="lin", filename=output)
 
     # Getting replicate average and standard deviation
     stats = np.zeros((lin_count, 2))
@@ -92,6 +123,9 @@ def fitness_pipeline(population, environment, reference=1, replicates=3, format=
         stats[x][0] = np.mean(reps)
         stats[x][1] = np.std(reps)
 
-    # Writing output
+    # Writing outputs
+    if doc:
+        return barcodes, s, stats
+
     save_fitness(name + "_fitness.csv", barcodes, s, replicates, stats)
-    # Will add plotting function here
+    fitness_plot(barcodes, s, stats, name + "_fit.png")

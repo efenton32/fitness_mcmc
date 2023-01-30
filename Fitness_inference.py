@@ -88,7 +88,7 @@ def fitness_pipeline(output, population, environment, reference=1, replicates=3,
 
     # Loop for all replicates
     barcodes = []
-    lin_count = raw.lineage_count("pop1")
+    lin_count = raw.lineage_count(population)
     s = np.zeros((replicates, lin_count))
     for rep in range(1, replicates + 1):
         s[rep - 1][0] = reference

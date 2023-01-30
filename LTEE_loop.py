@@ -21,4 +21,6 @@ environment_list = ["aceH", "aceL", "ampL", "chlL", "cipL", "fruH", "fruL", "glu
 
 for e in environment_list:
     print(e)
-    f.fitness_pipeline(out, pop, e, format=True)
+    #f.fitness_pipeline(out, pop, e, format=True)
+    s, stats, barcodes = f.read_s(out, pop, e)
+    f.fitness_plot(barcodes, s, stats, out + "_" + pop + "_" + e + "_fit.png")

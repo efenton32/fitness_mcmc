@@ -37,6 +37,31 @@ def save_fitness(filename, lineages, s_vals, replicates, stats):
     out.close()
 
 
+def read_s(out, population, environment, replicates=3):
+    """
+    Reads fitness_pipeline fitness files from out folder back into data (easier/faster than re-running the pipeline)
+
+    Parameters:
+        out(str) - file tag user imputs
+        population(str) - population of interest
+        environment(str) - fitness assay environment
+    """
+    name = out + "_" + population + "_" + environment + "_fitness.csv"
+    data_file = raw.get_dir(name, "out")
+    bc_read = pd.read_csv(data_file, sep=",", header=0)
+    lineages = len(bc_read.index)
+    s = np.zeros((replicates, lineages))
+    stats = np.zeros((lineages, 2))
+    barcodes = bc_read["BC"].tolist()
+    for rep in range(0, replicates):
+        k = "s_" + str(rep + 1)
+        s[rep] = bc_read[k]
+    stats[:, 0] = bc_read["average"]
+    stats[:, 1] = bc_read["standard deviation"]
+
+    return s, stats, barcodes
+
+
 def fitness_plot(gens, s, stats, filename):
     """
     Plots LTEE lineage fitness per generation.
@@ -57,6 +82,7 @@ def fitness_plot(gens, s, stats, filename):
     plt.ylabel('Fitness')
     out_file = raw.get_dir(filename, "out")
     plt.savefig(out_file)
+    plt.close()
 
 
 def fitness_pipeline(output, population, environment, reference=1, replicates=3, bc_ass="d0_j.csv", max_days=5,
@@ -128,4 +154,3 @@ def fitness_pipeline(output, population, environment, reference=1, replicates=3,
         return barcodes, s, stats
 
     save_fitness(name + "_fitness.csv", barcodes, s, replicates, stats)
-    fitness_plot(barcodes, s, stats, name + "_fit.png")

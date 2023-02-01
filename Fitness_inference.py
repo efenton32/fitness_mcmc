@@ -77,7 +77,7 @@ def fitness_plot(gens, s, stats, filename):
     plt.errorbar(gens, vals, errs, fmt='k:', capsize=3.0)
     for i in range(0, 3):
         plt.scatter(gens, s[i])
-    plt.title('Home Environment Inferred Fitness')
+    plt.title('Inferred Fitness')
     plt.xlabel('Time (generations)')
     plt.ylabel('Fitness')
     out_file = raw.get_dir(filename, "out")
@@ -85,8 +85,8 @@ def fitness_plot(gens, s, stats, filename):
     plt.close()
 
 
-def fitness_pipeline(output, population, environment, reference=1, replicates=3, bc_ass="d0_j.csv", max_days=5,
-                     gens_per_day=7, format=False, doc=False):
+def fitness_pipeline(output, population, environment, reference=1, replicates=3, max_days=5, gens_per_day=7,
+                     format=False, doc=False):
     """
     Serves as the master pipeline for getting a single environment's (and replicates) inferred fitness values. Will
     update these comments as I develop functionality here. Currently will:
@@ -102,7 +102,6 @@ def fitness_pipeline(output, population, environment, reference=1, replicates=3,
         environment(str) - environment of fitness assay
         reference(int) - reference lineage defined to have s = this value
         replicates(int) - # of replicates to be processed
-        bc_ass(str) - file_suffix with file type for the barcode association
         max_days(int) - # of days in fitness assay
         gens_per_day(int) - # of generations per day during assay (float support coming soon)
         format(bool) - whether or not to format from raw barcode counts
@@ -110,16 +109,16 @@ def fitness_pipeline(output, population, environment, reference=1, replicates=3,
     """
     name = output + "_" + population + "_" + environment
     if format:
-        raw.format_data(output, population, environment, replicates, bc_ass, max_days, gens_per_day)
+        raw.format_data(output, population, environment, replicates, max_days, gens_per_day)
 
     # Loop for all replicates
     barcodes = []
-    lin_count = raw.lineage_count(population)
+    lin_count = raw.lineage_count(name + "_1.csv")
     s = np.zeros((replicates, lin_count))
     for rep in range(1, replicates + 1):
         s[rep - 1][0] = reference
         # Loading data with data_io
-        r = name + str(rep)
+        r = name + "_" + str(rep)
         data, time, ordered_counts = io.load_data(r + ".csv", return_ordered=False, delimiter=",")
         if rep == 1:
             barcodes = data["BC"].tolist()

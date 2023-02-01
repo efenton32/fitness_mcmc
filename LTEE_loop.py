@@ -14,13 +14,14 @@ import fitness_mcmc.fitness_mcmc as m
 import fitness_mcmc.format_raw as raw
 
 out = "LTEE"
-pop = "pop1"
+pop = "pop"
 
 environment_list = ["aceH", "aceL", "ampL", "chlL", "cipL", "fruH", "fruL", "gluH", "gluL", "lacH", "lacL", "lbrH",
                     "lbrL", "malH", "malL", "rifL"]
 
-for e in environment_list:
-    print(e)
-    #f.fitness_pipeline(out, pop, e, format=True)
-    s, stats, barcodes = f.read_s(out, pop, e)
-    f.fitness_plot(barcodes, s, stats, out + "_" + pop + "_" + e + "_fit.png")
+for p in range(1, 5):
+    for e in environment_list:
+        print(p, e)
+        f.fitness_pipeline(out, pop + str(p), e, format=True)
+        #s, stats, barcodes = f.read_s(out, pop, e)
+        #f.fitness_plot(barcodes, s, stats, out + "_" + pop + "_" + e + "_fit.png")

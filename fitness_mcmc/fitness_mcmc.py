@@ -121,7 +121,7 @@ class Fitness_Model:
             for bc, s_val in zip(barcodes[1:], self.map_estimate["s"]):
                 writer.writerow([bc, s_val[0]])
 
-    def plot_MAP_estimate(self, type="log_y", filename=None):
+    def plot_MAP_estimate(self, type="log_y", filename=None, recon=False):
         """
         Plots lineage trajectories from the MAP estimate
 
@@ -135,6 +135,9 @@ class Fitness_Model:
         self.f_pred[0] = (self.map_estimate["f0"][0]
             * np.exp(self.s_ref_val * self.times) )
         self.f_pred /= np.sum(self.f_pred, axis = 0)
+
+        if recon:
+            return self.f_pred
 
         fig, axs = plt.subplots(1,2)
         if type == "log_y":

@@ -86,7 +86,7 @@ def fitness_plot(gens, s, stats, filename):
 
 
 def fitness_pipeline(output, population, environment, reference=1, replicates=3, max_days=5, gens_per_day=7,
-                     format=False, doc=False):
+                     format=False, doc=False, recon=False):
     """
     Serves as the master pipeline for getting a single environment's (and replicates) inferred fitness values. Will
     update these comments as I develop functionality here. Currently will:
@@ -135,6 +135,20 @@ def fitness_pipeline(output, population, environment, reference=1, replicates=3,
         # Plotting MAP
         if doc:
             fitness_model.plot_MAP_estimate(type="lin")
+        elif recon:
+            new_traj = fitness_model.plot_MAP_estimate(type="lin", recon=recon)
+            out_traj_name = raw.get_dir(r + "_reconstructed_freq.csv", "out")
+            out_traj = open(out_traj_name, "w")
+            header = "BC"
+            for t in range(0, max_days + 1):
+                header += "," + str(t * gens_per_day)
+            out_traj.write(header + "\n")
+            for bc in range(0, len(barcodes)):
+                holder = str(barcodes[bc])
+                for t in range(0, max_days + 1):
+                    holder += "," + str(new_traj[bc][t])
+                out_traj.write(holder + "\n")
+            out_traj.close()
         else:
             output = raw.get_dir(r + "_freq.png", "out")
             fitness_model.plot_MAP_estimate(type="lin", filename=output)

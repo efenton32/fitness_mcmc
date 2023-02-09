@@ -46,7 +46,7 @@ def read_s(out, population, environment, replicates=3):
         population(str) - population of interest
         environment(str) - fitness assay environment
     """
-    name = out + "_" + population + "_" + environment + "_fitness.csv"
+    name = out + "_" + population + "_" + environment + "_fitness_day1.csv"
     data_file = raw.get_dir(name, "out")
     bc_read = pd.read_csv(data_file, sep=",", header=0)
     lineages = len(bc_read.index)
@@ -74,7 +74,7 @@ def fitness_plot(gens, s, stats, filename):
     """
     vals = stats[:, 0]
     errs = stats[:, 1]
-    plt.errorbar(gens, vals, errs, fmt='k:', capsize=3.0)
+    plt.errorbar(gens, vals, errs, fmt='k.', capsize=3.0)
     for i in range(0, 3):
         plt.scatter(gens, s[i])
     plt.title('Inferred Fitness')
@@ -167,3 +167,89 @@ def fitness_pipeline(output, population, environment, reference=1, replicates=3,
         return barcodes, s, stats
 
     save_fitness(name + "_fitness.csv", barcodes, s, replicates, stats)
+
+
+def day_fitness(output, population, environment, reference=0, replicates=3, point_fit=3, assay_length=6, doc=False):
+    """
+    Will fit a single timepoint's fitness, should run after whole fitness assay inference.
+
+    Parameters:
+        output(str) - label for output files
+        population(str) - LTEE population of interest
+        environment(str) - environment of fitness assay
+        reference(int) - reference lineage defined to have s = this value
+        replicates(int) - # of replicates to be processed
+        point_fit(int) - number of points to include in the inference
+        assay_length(int) - max number of days in assay
+        doc(bool) - whether or not this is being run for documentation in a jupyter notebook
+    """
+    name = output + "_" + population + "_" + environment
+    out_days = assay_length - point_fit + 1
+
+    # Loop for all replicates
+    barcodes = []
+    lin_count = raw.lineage_count(name + "_1.csv")
+    s = np.zeros((replicates, lin_count, out_days))
+    for rep in range(1, replicates + 1):
+        s[rep - 1][0] = reference
+        # Loading data with data_io
+        r = name + "_" + str(rep)
+        data, time, ordered_counts = io.load_data(r + ".csv", return_ordered=False, delimiter=",")
+        if rep == 1:
+            barcodes = data["BC"].tolist()
+
+        for day in range(0, out_days):
+            points = []
+            t_count = np.zeros((lin_count, point_fit))
+            for p in range(0, point_fit):
+                shift = day + p
+                points.append(shift * 7)
+                t_count[:, p] = ordered_counts[:, shift]
+
+
+            # Creating fitness model and getting inferences with fitness_mcmc
+            fitness_model = m.Fitness_Model(t_count, points, s_ref=reference, prior="flat")
+            fitness_model.find_MAP()
+
+            # Retrieving "s" and "f0" values from the model and recording
+            raw_s = fitness_model.map_estimate["s"]
+            for lin in range(0, len(raw_s)):
+                s[rep - 1][lin + 1][day] = raw_s[lin][0]
+
+            # Plotting MAP
+            if doc:
+                fitness_model.plot_MAP_estimate(type="lin")
+            else:
+                output = raw.get_dir(r + "_freq.png", "out")
+                #fitness_model.plot_MAP_estimate(type="lin", filename=output)
+
+    # Getting replicate average and standard deviation
+    stats = np.zeros((lin_count, 2, out_days))
+    for x in range(0, lin_count):
+        for t in range(0, out_days):
+            reps = []
+            for q in range(0, replicates):
+                reps.append(s[q][x][t])
+            stats[x][0][t] = np.mean(reps)
+            stats[x][1][t] = np.std(reps)
+
+    # Writing outputs
+    if doc:
+        return barcodes, s, stats
+    else:
+        for day in range(0, out_days):
+            out_file = raw.get_dir(name + "_fitness_day" + str(day + 1) + ".csv", "out")
+            out = open(out_file, "w")
+            header = "BC"
+            for rep in range(1, replicates + 1):
+                header += ",s_" + str(rep)
+            out.write(header + ",average,standard deviation\n")
+            for w in range(0, len(barcodes)):
+                line = str(barcodes[w])
+                for rep in range(1, replicates + 1):
+                    line += "," + str(s[rep - 1][w][day])
+                line += "," + str(stats[w][0][day]) + "," + str(stats[w][1][day])
+                out.write(line + "\n")
+            out.close()
+
+

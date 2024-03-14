@@ -85,7 +85,7 @@ def fitness_plot(gens, s, stats, filename):
     plt.close()
 
 
-def fitness_pipeline(output, population, environment, reference=1, replicates=3, max_days=5, gens_per_day=7,
+def fitness_pipeline(output, population, environment, assay=0, reference=1, replicates=3, max_days=5, gens_per_day=7,
                      format=False, doc=False, recon=False):
     """
     Serves as the master pipeline for getting a single environment's (and replicates) inferred fitness values. Will
@@ -98,8 +98,9 @@ def fitness_pipeline(output, population, environment, reference=1, replicates=3,
 
     Parameters:
         output(str) - label for output files
-        population(str) - LTEE population of interest
+        population(str) - LTEE population of interest (generation for MEGA)
         environment(str) - environment of fitness assay
+        assay(int) - used in MEGA processing to denote replicates. if =0, then parameter is not used
         reference(int) - reference lineage defined to have s = this value
         replicates(int) - # of replicates to be processed
         max_days(int) - # of days in fitness assay
@@ -107,66 +108,130 @@ def fitness_pipeline(output, population, environment, reference=1, replicates=3,
         format(bool) - whether or not to format from raw barcode counts
         doc(bool) - whether or not this is being run for documentation in a jupyter notebook
     """
-    name = output + "_" + population + "_" + environment
-    if format:
-        raw.format_data(output, population, environment, replicates, max_days, gens_per_day)
 
     # Loop for all replicates
-    barcodes = []
-    lin_count = raw.lineage_count(name + "_1.csv")
-    s = np.zeros((replicates, lin_count))
-    for rep in range(1, replicates + 1):
-        s[rep - 1][0] = reference
-        # Loading data with data_io
-        r = name + "_" + str(rep)
-        data, time, ordered_counts = io.load_data(r + ".csv", return_ordered=False, delimiter=",")
-        if rep == 1:
-            barcodes = data["BC"].tolist()
+    if assay == 0:
+        name = output + "_" + population + "_" + environment
+        if format:
+            raw.format_data(output, population, environment, replicates, max_days, gens_per_day)
 
-        # Creating fitness model and getting inferences with fitness_mcmc
-        fitness_model = m.Fitness_Model(ordered_counts, time, s_ref=reference, prior="flat")
-        fitness_model.find_MAP()
+        barcodes = []
+        lin_count = raw.lineage_count(name + "_1.csv")
+        s = np.zeros((replicates, lin_count))
+        for rep in range(1, replicates + 1):
+            s[rep - 1][0] = reference
+            # Loading data with data_io
+            r = name + "_" + str(rep)
+            data, time, ordered_counts = io.load_data(r + ".csv", return_ordered=False, delimiter=",")
+            if rep == 1:
+                barcodes = data["BC"].tolist()
 
-        # Retrieving "s" and "f0" values from the model and recording
-        raw_s = fitness_model.map_estimate["s"]
-        for lin in range(0, len(raw_s)):
-            s[rep - 1][lin + 1] = raw_s[lin][0]
+            # Creating fitness model and getting inferences with fitness_mcmc
+            fitness_model = m.Fitness_Model(ordered_counts, time, s_ref=reference, prior="flat")
+            fitness_model.find_MAP()
 
-        # Plotting MAP
-        if doc:
-            fitness_model.plot_MAP_estimate(type="lin")
-        elif recon:
-            new_traj = fitness_model.plot_MAP_estimate(type="lin", recon=recon)
-            out_traj_name = raw.get_dir(r + "_reconstructed_freq.csv", "out")
-            out_traj = open(out_traj_name, "w")
-            header = "BC"
-            for t in range(0, max_days + 1):
-                header += "," + str(t * gens_per_day)
-            out_traj.write(header + "\n")
-            for bc in range(0, len(barcodes)):
-                holder = str(barcodes[bc])
+            # Retrieving "s" and "f0" values from the model and recording
+            raw_s = fitness_model.map_estimate["s"]
+            for lin in range(0, len(raw_s)):
+                s[rep - 1][lin + 1] = raw_s[lin][0]
+
+            # Plotting MAP
+            if doc:
+                fitness_model.plot_MAP_estimate(type="log")
+            elif recon:
+                new_traj = fitness_model.plot_MAP_estimate(type="lin", recon=recon)
+                out_traj_name = raw.get_dir(r + "_reconstructed_freq.csv", "out")
+                out_traj = open(out_traj_name, "w")
+                header = "BC"
                 for t in range(0, max_days + 1):
-                    holder += "," + str(new_traj[bc][t])
-                out_traj.write(holder + "\n")
-            out_traj.close()
-        else:
-            output = raw.get_dir(r + "_freq.png", "out")
-            fitness_model.plot_MAP_estimate(type="lin", filename=output)
+                    header += "," + str(t * gens_per_day)
+                out_traj.write(header + "\n")
+                for bc in range(0, len(barcodes)):
+                    holder = str(barcodes[bc])
+                    for t in range(0, max_days + 1):
+                        holder += "," + str(new_traj[bc][t])
+                    out_traj.write(holder + "\n")
+                out_traj.close()
+            else:
+                new_output = raw.get_dir(r + "_freq.png", "out")
+                fitness_model.plot_MAP_estimate(type="lin", filename=new_output)
 
-    # Getting replicate average and standard deviation
-    stats = np.zeros((lin_count, 2))
-    for x in range(0, lin_count):
-        reps = []
-        for q in range(0, replicates):
-            reps.append(s[q][x])
-        stats[x][0] = np.mean(reps)
-        stats[x][1] = np.std(reps)
+        # Getting replicate average and standard deviation
+        stats = np.zeros((lin_count, 2))
+        for x in range(0, lin_count):
+            reps = []
+            for q in range(0, replicates):
+                reps.append(s[q][x])
+            stats[x][0] = np.mean(reps)
+            stats[x][1] = np.std(reps)
 
-    # Writing outputs
-    if doc:
-        return barcodes, s, stats
+        # Writing outputs
+        if doc:
+            return barcodes, s, stats
 
-    save_fitness(name + "_fitness.csv", barcodes, s, replicates, stats)
+        save_fitness(name + "_fitness.csv", barcodes, s, replicates, stats)
+
+    else:
+        # MEGA has name "UMIx_Gen#_env_assay#.csv"
+        # Grouping UMIn and UMIp output files together
+        print("starting")
+        size = output + "n_" + population + "_" + environment + "_assay" + str(assay)
+        lin_count = raw.lineage_count(size + ".csv")
+        s = np.zeros((2, lin_count))
+        barcodes = []
+        umi = ["n", "p"]
+        for u in range(0, 2):
+            name = output + umi[u] + "_" + population + "_" + environment + "_assay" + str(assay)
+            data, time, ordered_counts = io.load_data(name + ".csv", return_ordered=False, delimiter=",")
+            barcodes = data["BC"].tolist()
+            s[u][0] = reference
+
+            print("inferring")
+            fitness_model = m.Fitness_Model(ordered_counts, time, s_ref=reference, prior="flat")
+            fitness_model.find_MAP()
+
+            print("writing")
+            raw_s = fitness_model.map_estimate["s"]
+            for lin in range(0, len(raw_s)):
+                s[u][lin + 1] = raw_s[lin][0]
+
+            if doc:
+                fitness_model.plot_MAP_estimate(type="log")
+            elif recon:
+                new_traj = fitness_model.plot_MAP_estimate(type="lin", recon=recon)
+                out_traj_name = raw.get_dir(name + "_reconstructed_freq.csv", "out")
+                out_traj = open(out_traj_name, "w")
+                header = "BC"
+                for t in range(0, max_days + 1):
+                    header += "," + str(t * gens_per_day)
+                out_traj.write(header + "\n")
+                for bc in range(0, len(barcodes)):
+                    holder = str(barcodes[bc])
+                    for t in range(0, max_days + 1):
+                        holder += "," + str(new_traj[bc][t])
+                    out_traj.write(holder + "\n")
+                out_traj.close()
+            else:
+                new_output = raw.get_dir(name + "_freq.png", "out")
+                #fitness_model.plot_MAP_estimate(type="lin", filename=new_output)
+
+        # Getting replicate average and standard deviation
+        stats = np.zeros((lin_count, 2))
+        for x in range(0, lin_count):
+            reps = []
+            for q in range(0, 2):
+                reps.append(s[q][x])
+            stats[x][0] = np.mean(reps)
+            stats[x][1] = np.std(reps)
+
+        # Writing outputs
+        if doc:
+            return barcodes, s, stats
+
+        save_fitness("MEGA_" + population + "_" + environment + "_assay" + str(assay) + "_fitness.csv", barcodes, s, 2, stats)
+        print("done")
+
+
 
 
 def day_fitness(output, population, environment, reference=0, replicates=3, point_fit=3, assay_length=6, doc=False):

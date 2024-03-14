@@ -18,6 +18,7 @@ pop = "pop"
 
 environment_list = ["aceH", "aceL", "ampL", "chlL", "cipL", "fruH", "fruL", "gluH", "gluL", "lacH", "lacL", "lbrH",
                     "lbrL", "malH", "malL", "rifL"]
+test_list = ["lbrL", "lbrH"]
 
 for p in range(1, 5):
     for e in environment_list:

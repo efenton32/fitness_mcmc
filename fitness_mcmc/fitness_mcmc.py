@@ -42,8 +42,8 @@ class Fitness_Model:
             self.s_ref = pm.math.constant(s_ref, ndim = 3)
 
             if self.prior == "gauss":
-                self.mu = pm.Uniform("mu", -0.5, 0.2)
-                self.sigma = pm.Uniform("sigma", 0.01, 1.0)
+                self.mu = pm.Uniform("mu", -1.5, 1.0)
+                self.sigma = pm.Uniform("sigma", 0.01, 1.5)
                 self.s = pm.Normal("s", self.mu, self.sigma,
                     shape = (self.N - 1, 1, 1)
                 )
